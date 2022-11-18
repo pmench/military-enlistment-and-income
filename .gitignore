@@ -1,8 +1,10 @@
+# ignore local settings
+.DS_Store
+.Rproj.user/
+scratch_notes.md
+
 # ignore all .log files
 *.log
 
-# ignore R user data file
-.Rproj.user/
-
 # ignore files in other zip data directory
-other_zip_data/*
+other_zip_data/
