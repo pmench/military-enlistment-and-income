@@ -1,7 +1,9 @@
-# ignore local settings
+# ignore local settings and files
 .DS_Store
 .Rproj.user/
 scratch_notes.md
+.RData
+.Rhistory
 
 # ignore all .log files
 *.log
