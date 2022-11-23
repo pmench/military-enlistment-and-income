@@ -8,5 +8,16 @@ library(tidyverse)
 
 enlist <- read_csv("../data/enlist_clean.csv")
 income <- read_csv("../data/10zpallagi.csv")
+enlist <- enlist[-c(943), ] # remove row with totals
 ```
 
+Extract the zip prefix to a new column in preparation for joining enlistment and
+income data, and build new data frames with only the columns of interest.
+```{r}
+income$zip_prefix <- str_sub(income$zipcode, 1, 3)
+income_analyze <- income %>%
+  select(STATE, zip_prefix, agi_stub, N1)
+
+enlist_analyze <- enlist %>%
+  select(`1st 3 digits Zip Code`, Total...15)
+```
