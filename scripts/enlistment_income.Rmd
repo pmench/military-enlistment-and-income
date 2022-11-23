@@ -4,7 +4,9 @@ output: html_notebook
 ---
 
 ```{r}
-library(dplyr)
 library(tidyverse)
+
+enlist <- read_csv("../data/enlist_clean.csv")
+income <- read_csv("../data/10zpallagi.csv")
 ```
 
