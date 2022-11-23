@@ -16,8 +16,10 @@ income data, and build new data frames with only the columns of interest.
 ```{r}
 income$zip_prefix <- str_sub(income$zipcode, 1, 3)
 income_analyze <- income %>%
-  select(STATE, zip_prefix, agi_stub, N1)
+  select(STATE, zip_prefix, agi_stub, N1) %>%
+  rename(agi_size_code = agi_stub, total_returns = N1)
 
 enlist_analyze <- enlist %>%
-  select(`1st 3 digits Zip Code`, Total...15)
+  select(`1st 3 digits Zip Code`, Total...15) %>%
+  rename(zip_prefix = `1st 3 digits Zip Code`, total_enlisted = Total...15)
 ```
