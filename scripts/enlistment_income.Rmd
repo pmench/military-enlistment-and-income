@@ -69,9 +69,12 @@ total_population <- income_analyze %>%
   summarize(population_size = sum(total_returns))
 
 enlist_by_income <- left_join(income_avg, enlist_analyze, by='zip_prefix')
-head(enlist_by_income)
 
 enlist_by_income <- left_join(enlist_by_income, total_population, by='zip_prefix')
+
+enlist_by_income$enlist_per_10K <- (
+  (enlist_by_income$total_enlisted / enlist_by_income$population_size) * 10000
+)
 head(enlist_by_income)
 
 ```
