@@ -54,11 +54,8 @@ income_analyze['agi_size'][income_analyze['agi_size'] == 6] <- 200000
 ```
 
 Find the average income for each zip code and total population (estimated by number
-of returns), join dataframes, normalize enlistment numbers per 10,000 people.
+of returns), join dataframes, calculate enlistment numbers per 10,000 people.
 ```{r}
-# income_max <- income_analyze %>%
-#  slice_max(n = 1, order_by = total_returns)
-
 income_analyze$income <- income_analyze$agi_size * income_analyze$total_returns
 
 income_avg <- income_analyze %>%
@@ -69,10 +66,18 @@ total_population <- income_analyze %>%
   summarize(population_size = sum(total_returns))
 
 enlist_by_income <- left_join(income_avg, enlist_analyze, by='zip_prefix')
-head(enlist_by_income)
 
 enlist_by_income <- left_join(enlist_by_income, total_population, by='zip_prefix')
-head(enlist_by_income)
+
+enlist_by_income <- enlist_by_income %>%
+  mutate(total_enlisted = ifelse(is.na(total_enlisted), 0, total_enlisted))
+
+enlist_by_income <- enlist_by_income %>% # remove problem data that likely aggregated into one zip
+  filter(zip_prefix != '000' & zip_prefix != '999')
+
+enlist_by_income$enlist_per_10K <- (
+  (enlist_by_income$total_enlisted / enlist_by_income$population_size) * 10000
+)
 
 ```
 
