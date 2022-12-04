@@ -5,6 +5,8 @@ output: html_notebook
 
 ```{r}
 library(tidyverse)
+library(skimr)
+library(moderndive)
 
 enlist <- read_csv("../data/enlist_clean.csv")
 income <- read_csv("../data/10zpallagi.csv")
@@ -81,6 +83,22 @@ enlist_by_income$enlist_per_10K <- (
 
 ```
 
+Descriptive statistics.
+```{r}
+enlist_by_income %>%
+  sample_n(size = 10)
 
+enlist_by_income %>%
+  summarise(
+    `2010_total_enlisted` = sum(total_enlisted),
+            avg_enlist_per_10K = mean(enlist_per_10K),
+              )
+
+enlist_by_income %>% select(enlist_per_10K, avg_income) %>% skim()
+
+enlist_by_income %>%
+  get_correlation(formula = enlist_per_10K ~ avg_income)
+
+```
 
 
