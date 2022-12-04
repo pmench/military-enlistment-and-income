@@ -98,14 +98,15 @@ enlist_by_income %>%
 enlist_by_income %>%
   summarise(
     `2010_total_enlisted` = sum(total_enlisted),
-    avg_enlist_per_10K = mean(enlist_per_10K),
-    max_enlist = max(enlist_per_10K),
-    min_enlist = min(enlist_per_10K),
-    max_avg_income = max(avg_income),
-    min_avg_income = min(avg_income)
+    avg_enlist_per_10K = mean(enlist_per_10K)
               )
 
-enlist_by_income %>% select(enlist_per_10K, avg_income) %>% skim()
+max(enlist_by_income$enlist_per_10K)
+min(enlist_by_income$enlist_per_10K)
+max(enlist_by_income$avg_income)
+min(enlist_by_income$avg_income)
+
+ enlist_by_income %>% select(enlist_per_10K, avg_income) %>% skim()
 
 enlist_by_income %>%
   get_correlation(formula = enlist_per_10K ~ avg_income)
@@ -118,8 +119,8 @@ Visualize data.
 top_100_enlist <- enlist_by_income %>%
   top_n(100, enlist_per_10K)
 
-ggplot(top_100_enlist, aes(x = enlist_per_10K, y = avg_income)) +
-  geom_point()
+ggplot(enlist_by_income, aes(x = avg_income, y = enlist_per_10K)) +
+  geom_point(alpha = 0.2)
 
 ggplot(enlist_by_income, aes(x = avg_income)) +
   geom_histogram(binwidth = 1000, color = 'white', fill = 'dodgerblue4') +
