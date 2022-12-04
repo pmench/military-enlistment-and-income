@@ -121,13 +121,42 @@ top_100_enlist <- enlist_by_income %>%
   top_n(100, enlist_per_10K)
 
 ggplot(enlist_by_income, aes(x = avg_income, y = enlist_per_10K)) +
-  geom_point(alpha = 0.1)
+  geom_point(alpha = 0.3, color = 'tomato') +
+  labs(
+    title = '2020 Military Enlistments by Average Income of Zip Code',
+    x = 'Average Income', y = 'Enlistments per 10K'
+    )
 
 ggplot(enlist_by_income, aes(x = avg_income)) +
   geom_histogram(binwidth = 1000, color = 'white', fill = 'dodgerblue4') +
-  labs(title = 'Distribution of Incomes in Military Enlistments Data 2010',
-       x = 'Average Income', y = 'Count')
+  labs(
+    title = 'Distribution of Incomes in Military Enlistments by Zip Code 2010',
+       x = 'Average Income of Zip Code', y = 'Count of Zip Code'
+    )
 
 ```
+
+Create basic regression model.
+```{r}
+enlist_model <- lm(enlist_per_10K ~ avg_income, data = enlist_by_income)
+get_regression_table(enlist_model)
+
+# enlist_per_10K = 251 - 0.003 * avg_income
+
+ggplot(enlist_by_income, aes(x = avg_income, y = enlist_per_10K)) +
+  geom_point(alpha = 0.3, color = 'tomato') +
+  geom_smooth(method = lm, se = FALSE, color = 'dodgerblue4') +
+  labs(
+    title = '2020 Military Enlistments by Average Income of Zip Code',
+    x = 'Average Income', y = 'Enlistments per 10K'
+    )
+
+regression_points <- get_regression_points(enlist_model, ID = 'zip_prefix')
+regression_points %>%
+  mutate(squared_residuals = residual^2) %>%
+  summarize(sum_sq_residuals = sum(squared_residuals))
+  
+```
+
 
 
