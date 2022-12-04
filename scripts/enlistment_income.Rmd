@@ -1,6 +1,9 @@
 ---
 title: "Relationship Between Military Enlistment and Income by Zip Code"
 output: html_notebook
+author: Philip Menchaca
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r}
@@ -12,6 +15,7 @@ enlist <- read_csv("../data/enlist_clean.csv")
 income <- read_csv("../data/10zpallagi.csv")
 enlist <- enlist[-c(943), ] # remove row with totals
 ```
+
 
 Extract the zip prefix to a new column in preparation for joining enlistment and
 income data, and build new data frames with only the columns of interest.
@@ -26,12 +30,14 @@ enlist_analyze <- enlist %>%
   rename(zip_prefix = `1st 3 digits Zip Code`, total_enlisted = Total...15)
 ```
 
+
 Regroup income by Zip prefix and size of Adjusted Gross Income.
 ```{r}
 income_analyze <- income_analyze %>%
   group_by(zip_prefix, agi_size) %>%
   summarise(total_returns = round(sum(total_returns)))
 ```
+
 
 The IRS codes the size of adjusted gross income as follows:
 _1 = $1 under $25,000_
@@ -45,7 +51,6 @@ The middle of each range is used as a proxy for a range with a lower and upper v
 The lower value is used for code 6 as no maximum is given. This is done to simplify
 the analysis since the levels of income relative to each are more important for 
 this analysis than knowing exact ranges or specific incomes.
-
 ```{r}
 income_analyze['agi_size'][income_analyze['agi_size'] == 1] <- 12500
 income_analyze['agi_size'][income_analyze['agi_size'] == 2] <- 37500
@@ -54,6 +59,7 @@ income_analyze['agi_size'][income_analyze['agi_size'] == 4] <- 87500
 income_analyze['agi_size'][income_analyze['agi_size'] == 5] <- 150000
 income_analyze['agi_size'][income_analyze['agi_size'] == 6] <- 200000
 ```
+
 
 Find the average income for each zip code and total population (estimated by number
 of returns), join dataframes, calculate enlistment numbers per 10,000 people.
@@ -83,6 +89,7 @@ enlist_by_income$enlist_per_10K <- (
 
 ```
 
+
 Descriptive statistics.
 ```{r}
 enlist_by_income %>%
@@ -91,13 +98,33 @@ enlist_by_income %>%
 enlist_by_income %>%
   summarise(
     `2010_total_enlisted` = sum(total_enlisted),
-            avg_enlist_per_10K = mean(enlist_per_10K),
+    avg_enlist_per_10K = mean(enlist_per_10K),
+    max_enlist = max(enlist_per_10K),
+    min_enlist = min(enlist_per_10K),
+    max_avg_income = max(avg_income),
+    min_avg_income = min(avg_income)
               )
 
 enlist_by_income %>% select(enlist_per_10K, avg_income) %>% skim()
 
 enlist_by_income %>%
   get_correlation(formula = enlist_per_10K ~ avg_income)
+
+```
+
+
+Visualize data.
+```{r}
+top_100_enlist <- enlist_by_income %>%
+  top_n(100, enlist_per_10K)
+
+ggplot(top_100_enlist, aes(x = enlist_per_10K, y = avg_income)) +
+  geom_point()
+
+ggplot(enlist_by_income, aes(x = avg_income)) +
+  geom_histogram(binwidth = 1000, color = 'white', fill = 'dodgerblue4') +
+  labs(title = 'Distribution of Incomes in Military Enlistments Data 2010',
+       x = 'Average Income', y = 'Count')
 
 ```
 
