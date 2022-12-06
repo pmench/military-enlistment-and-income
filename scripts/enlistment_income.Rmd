@@ -2,17 +2,17 @@
 title: "Relationship Between Military Enlistment and Income by Zip Code"
 output: html_notebook
 author: Philip Menchaca
-editor_options: 
-  chunk_output_type: inline
 ---
+
+
 
 ```{r}
 library(tidyverse)
 library(skimr)
 library(moderndive)
 
-enlist <- read_csv("../data/enlist_clean.csv")
-income <- read_csv("../data/10zpallagi.csv")
+enlist <- read_csv("../data/enlist_clean.csv", show_col_types = FALSE)
+income <- read_csv("../data/10zpallagi.csv", show_col_types = FALSE)
 enlist <- enlist[-c(943), ] # remove row with totals
 ```
 
@@ -93,13 +93,12 @@ enlist_by_income$enlist_per_10K <- (
 
 Descriptive statistics.
 ```{r}
-enlist_by_income %>%
-  sample_n(size = 10)
+# enlist_by_income %>%
+#  sample_n(size = 10)
 
 enlist_by_income %>%
   summarise(
     `2010_total_enlisted` = sum(total_enlisted),
-    avg_enlist = mean(enlist_per_10K),
     IQR_enlist = IQR(enlist_per_10K),
     IQR_income = IQR(avg_income),
     max_enlist = max(enlist_per_10K),
@@ -108,11 +107,15 @@ enlist_by_income %>%
     min_income = min(avg_income)
               )
 
- enlist_by_income %>% select(enlist_per_10K, avg_income) %>% skim()
+enlist_by_income %>% select(enlist_per_10K, avg_income) %>% skim()
 
 enlist_by_income %>%
   get_correlation(formula = enlist_per_10K ~ avg_income)
 
+enlist_under_avg_income <- sum(enlist_by_income[which(enlist_by_income$avg_income < 
+                             mean(enlist_by_income$avg_income)), "total_enlisted"])
+
+enlist_under_avg_income / sum(enlist_by_income$total_enlisted)
 ```
 
 
@@ -124,14 +127,14 @@ top_100_enlist <- enlist_by_income %>%
 ggplot(enlist_by_income, aes(x = avg_income, y = enlist_per_10K)) +
   geom_point(alpha = 0.3, color = 'tomato') +
   labs(
-    title = '2020 Military Enlistments by Average Income of Zip Code',
+    title = '2010 Military Enlistments by Average Income of Zip Code',
     x = 'Average Income', y = 'Enlistments per 10K'
     )
 
 ggplot(enlist_by_income, aes(x = avg_income)) +
   geom_histogram(binwidth = 1000, color = 'white', fill = 'dodgerblue4') +
   labs(
-    title = 'Distribution of Incomes in Military Enlistments by Zip Code 2010',
+    title = '2010 Distribution of Incomes in Military Enlistments by Zip Code',
        x = 'Average Income of Zip Code', y = 'Count of Zip Code'
     )
 
@@ -143,20 +146,20 @@ Create basic regression model.
 
 enlist_by_income <- enlist_by_income %>%
   mutate(
-    log10_enlist_per_10k = log10(enlist_per_10K + 1),
-    log10_avg_income = log10(avg_income + 1)
-  )
+    log10_avg_income = log10(avg_income),
+    log10_enlist_per_10K = log10(enlist_per_10K + 1)
+    )
 
-enlist_model <- lm(log10_enlist_per_10k ~ log10_avg_income, data = enlist_by_income)
+enlist_model <- lm(log10_enlist_per_10K ~ log10_avg_income, data = enlist_by_income)
 get_regression_table(enlist_model)
 
 # enlist_per_10K = 251 - 0.003 * avg_income
 
-ggplot(enlist_by_income, aes(x = log10(avg_income), y = log10(enlist_per_10K))) +
+ggplot(enlist_by_income, aes(x = log10(avg_income), y = log10_enlist_per_10K)) +
   geom_point(alpha = 0.3, color = 'tomato') +
   geom_smooth(method = lm, se = FALSE, color = 'dodgerblue4') +
   labs(
-    title = '2020 Military Enlistments by Average Income of Zip Code',
+    title = '2010 Military Enlistments by Average Income of Zip Code',
     x = 'Average Income', y = 'Enlistments per 10K'
     )
 
