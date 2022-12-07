@@ -1,27 +1,53 @@
 ---
-title: "Relationship Between Military Enlistment and Income by Zip Code"
+title: "Who Really Serves in the U.S. Military?"
 output: html_notebook
 author: Philip Menchaca
 url: https://github.com/pmench/military-enlistment-and-income
 ---
 
-A 2008 report by The Heritage Foundation concluded that enlisted military recruits were more likely to come from middle and upper class neighborhoods (Watkins, Shanea J, and James Sherk. 2008. “Who Serves in the U.S. Military? Demographic Characteristics of Enlisted Troops and Of Cers.” CDA08-05. Heritage Foundation Center for Data Analysis). In contrast, a 2008 study concluded that "among the working class, those who have served in the military have tended to come from poorer circumstances, while there is low representation of the children of the very rich" (Lutz, Amy. 2008. “Who Joins the Military? A Look at Race, Class, and Immigration Status.” Journal of Political & Military Sociology 36 (2): 178).
+### (Re)assessing the Relationship Between Military Enlistment and Income
 
+A 2008 report by The Heritage Foundation concluded that enlisted military recruits were more likely to come from middle and upper class neighborhoods (Watkins and Sherk 2008). In contrast, a 2008 study concluded that "among the working class, those who have served in the military have tended to come from poorer circumstances, while there is low representation of the children of the very rich" (Lutz 2008, 178). Who is right?
 
+Before beginning my analysis, I was skeptical of the conclusions in The Heritage Foundation report. In truth, my skepticism didn't arise from any particular empirical assessment of the report (and, indeed, like The Heritage Foundation, the Office of the Undersecretary of Defense has reported that the middle class is overrepresented in the military), but rather from the apparent bias of the authors in favor of the report's conclusion (“Demographics of the U.S. Military” n.d.). They state:
 
+"The average enlisted person or officer could have had lucrative career opportunities in the private sector. Those who argue that American soldiers risk their lives because they have no other opportunities belittle the personal sacrifices of those who serve out of love for their country."
+
+This simplistic rendering of associations between socioeconomic status and propensity for enlistment suffers from at least two faults. First, it suggests monocausal explanations for enlistment: either one serves for love of country or for economic reasons. In reality, people often join the military for multiple reasons, and each person might give different weights to each of their reasons For example, a more complex study of propensity to enlist considered "a) family and demographic background, (b) educational background and aspirations, and (c) a wide range of values, attitudes, and behaviors." (Bachman et al. 2000, 2). It also positions military service as a morally pure act that would be diminished by more worldly motivations. But shouldn't placing your life at risk in service of your country come with some level of worldly reward? And, if military service is economically rewarded, then economic reward becomes intrinsically linked to military service and any assessment of motivations to join the military should acknowledge that as a potential factor, without judgment.
+
+Thus, I undertook my analysis to reassess the relationship between income and enlistment, and provide more data for consideration when examining the demographics of the military. The results show that doubling income leads to a _140% decrease_ in the number of people enlisted, suggesting it would be worthwhile to revisit the question "who serves in the U.S. military?"
+
+## Objectives and Methods
+
+I wanted to test the hypothesis that military enlistment decreases as family income increase and model any potential relationship between income and military enlistment. This required multiple steps:
+
+1. Clean and wrangle data to join income levels and number of people enlisted, matching by zip code.
+2. Explore the data with descriptive statistics and visualization.
+3. Fit a linear model with basic regression to better understand the effect of changes to income on changes to number of people enlisting in the military.
+4. Conduct a one-sided hypothesis test with shuffling and bootstrapping, with α = 0.05.
+
+## Data Sources
+
+Enlistment data came from the Department of Defense, via data.gov. The data is no longer accessible via data.gov but I have included it on this project's GitHub repository. I chose to focus on the most recent data in that dataset, from 2010.
+
+The enlistment data is reported by three-digit zip code prefix. In order to associate enlistment data with income by zip code, I matched tax return data from the IRS for the year 2010. I chose to use adjusted gross income rather than salaries/wages to better approximate wealth since AGI adjusts gross income for certain kinds of expenses, such as business expenses and student loan payments.
+
+## Analysis
+
+After writing a Python script to perform some preliminary data cleaning, I loaded necessary libraries and my data.
 ```{r}
 library(tidyverse)
 library(skimr)
 library(moderndive)
+library(infer)
 
 enlist <- read_csv("../data/enlist_clean.csv", show_col_types = FALSE)
 income <- read_csv("../data/10zpallagi.csv", show_col_types = FALSE)
-enlist <- enlist[-c(943), ] # remove row with totals
+enlist <- enlist[-c(943), ] # remove row with column totals
 ```
 
 
-Extract the zip prefix to a new column in preparation for joining enlistment and
-income data, and build new data frames with only the columns of interest.
+I then performed additional cleaning to prepare the data for analysis. I extracted the three-digit zip prefix in the IRS data to a new column in preparation for joining enlistment and income data, and then built new data frames with only the columns of interest.
 ```{r}
 income$zip_prefix <- str_sub(income$zipcode, 1, 3)
 income_analyze <- income %>%
@@ -34,7 +60,7 @@ enlist_analyze <- enlist %>%
 ```
 
 
-Regroup income by Zip prefix and size of Adjusted Gross Income.
+The first three digits of zip codes indicates the USPS "sectional center facility," which is a mail processing center for a specific area, while the next two digits of the zip code indicates a delivery area. Thus, once extracted, a single three-digit zip prefix represented multiple areas in a state. Therefore, I regrouped income by three-digit zip prefix and size of Adjusted Gross Income to get the size of AGI categories aggregated by three-digit zip prefix.
 ```{r}
 income_analyze <- income_analyze %>%
   group_by(zip_prefix, agi_size) %>%
@@ -44,17 +70,17 @@ income_analyze <- income_analyze %>%
 
 
 The IRS codes the size of adjusted gross income as follows:
-_1 = $1 under $25,000_
-_2 = $25,000 under $50,000_
-_3 = $50,000 under $75,000_
-_4 = $75,000 under $100,000_
-_5 = $100,000 under $200,000_
-_6 = $200,000 or more_
+- _1 = $1 under $25,000_
+- _2 = $25,000 under $50,000_
+- _3 = $50,000 under $75,000_
+- _4 = $75,000 under $100,000_
+- _5 = $100,000 under $200,000_
+- _6 = $200,000 or more_
 
-The middle of each range is used as a proxy for a range with a lower and upper value.
-The lower value is used for code 6 as no maximum is given. This is done to simplify
+I used the middle of each range as a proxy for a range with a lower and upper value.
+For code 6, I only use the lower value as no maximum is given. This is done to simplify
 the analysis since the levels of income relative to each are more important for 
-this analysis than knowing exact ranges or specific incomes.
+this analysis than knowing exact ranges or specific incomes. Note, this means that therefore incomes reported here should not be viewed as actual incomes for an area but rather an indication of wealth relative to other areas.
 ```{r}
 income_analyze['agi_size'][income_analyze['agi_size'] == 1] <- 12500
 income_analyze['agi_size'][income_analyze['agi_size'] == 2] <- 37500
@@ -65,8 +91,10 @@ income_analyze['agi_size'][income_analyze['agi_size'] == 6] <- 200000
 ```
 
 
-Find the average income for each zip code and total population (estimated by number
-of returns), join dataframes, calculate enlistment numbers per 10,000 people.
+I then found the average income for each zip code area, the total population (estimated by number
+of returns), joined income and enlistment dataframes, and calculated enlistment numbers per 10,000 people. Additionally, I removed two data that presented obvious problems. The 000 prefix is used as a placeholder for areas without proper zip codes, and thus included data from multiple states. The 999 prefix, Ketchikan, Alaska, had an unusually high number of enlistments, more than 37,000—higher than the entire population of Ketchikan and higher than 10000 enlistments per 10000 people. The extreme nature of the 999 data is consistent across all years (2000 to 2010, with 2002 and 2006 missing) for which I obtained data indicating this is due to the way data is recorded by the military, possibly due to aggregation areas.
+
+When the data was joined, enlistment data for territories such as the Puerto Rico and certain military bases was eliminated, as income data was confined to the 50 states and the District of Columbia.
 ```{r}
 income_analyze$income <- income_analyze$agi_size * income_analyze$total_returns
 
@@ -94,40 +122,31 @@ enlist_by_income$enlist_per_10K <- (
 ```
 
 
-Descriptive statistics.
+With the data in a workable format, I calculated descriptive statistics.
 ```{r}
 # enlist_by_income %>%
-#  sample_n(size = 10)
+#  sample_n(size = 10) # check a random sample for any obvious errors
 
 enlist_by_income %>%
   summarise(
     `2010_total_enlisted` = sum(total_enlisted),
     IQR_enlist = IQR(enlist_per_10K),
     IQR_income = IQR(avg_income),
-    max_enlist = max(enlist_per_10K),
-    max_income = max(avg_income),
-    min_enlist = min(enlist_per_10K),
-    min_income = min(avg_income)
+    median_income = median(avg_income),
+    median_enlist = median(enlist_per_10K)
               )
 
 enlist_by_income %>% select(enlist_per_10K, avg_income) %>% skim()
 
-enlist_by_income %>%
-  get_correlation(formula = enlist_per_10K ~ avg_income)
-
-median(enlist_by_income$avg_income)
-
-enlist_under_median_income <- sum(enlist_by_income[which(enlist_by_income$avg_income < 
-                             median(enlist_by_income$avg_income)), "total_enlisted"])
-
-enlist_under_median_income / sum(enlist_by_income$total_enlisted)
+cor(enlist_by_income$log10_enlist_per_10K,enlist_by_income$log10_avg_income, method = "pearson")
 ```
 
+The IQR, a measurement of spread less sensitive to skew, indicates that the middle 50% of enlistments has a range of 48.73 and the middle 50% of income data has a range of 9,729. Since these are somewhat narrow ranges in the context of the data, this suggests that there isn't great variability in the middle 50% of the data. Median income was $46,126 and the median for enlistments per 10,000 was 89. The correlation coefficient is -0.5348399, indicating a moderate negative association between income and number of people enlisting.
 
-Visualize data.
+To visualize data, I created two graphs: a scatterplot of average income by zip code and enlistments per 10,000 people and a histogram of the number of zip codes per average income, showing the distribution of incomes in the data.
+
+The scatterplot reveals two extreme outliers, both in income and enlistments per 10000. It also appears to show a linear, negative relationship between income and enlistments. The distribution of incomes reveals a somewhat leftward skew, with clustering more closely around the median income level in the dataset, as might be expected from the IQRs.
 ```{r}
-top_100_enlist <- enlist_by_income %>%
-  top_n(100, enlist_per_10K)
 
 ggplot(enlist_by_income, aes(x = avg_income, y = enlist_per_10K)) +
   geom_point(alpha = 0.3, color = 'tomato') +
@@ -145,22 +164,24 @@ ggplot(enlist_by_income, aes(x = avg_income)) +
 
 ```
 
-Create basic regression model.
+I next created created a basic regression model, making a log10 transform to better show the relationship between data. With the transformation, the negative relationship between income and enlistments becomes more apparent. Based on the regression, the relationship between enlistments per 10,000 and average income can be expressed by the following formula:
+
+_log10_enlist_per_10K = 8.904 - 1.488 * log10_avg_income_
+
+This indicates that if the average income increases by 10%, enlistment per 10,000 decreases by about 14%; doubling income would lead to a 140% decrease in enlistment per 10,000. Further, the 95% confidence intervals for the coefficient (lower: -1.643, upper:	-1.332) do not include 0, giving confidence that we are observing a significant relationship between enlistment numbers and income.
 ```{r}
 # Log enlist per 10k and enlist by avg_income
 
 enlist_by_income <- enlist_by_income %>%
   mutate(
     log10_avg_income = log10(avg_income),
-    log10_enlist_per_10K = log10(enlist_per_10K + 1)
+    log10_enlist_per_10K = log10(enlist_per_10K + 1) # added 1 to adjust for 0 value
     )
 
 enlist_model <- lm(log10_enlist_per_10K ~ log10_avg_income, data = enlist_by_income)
 get_regression_table(enlist_model)
 
-# enlist_per_10K = 251 - 0.003 * avg_income
-
-ggplot(enlist_by_income, aes(x = log10(avg_income), y = log10_enlist_per_10K)) +
+ggplot(enlist_by_income, aes(x = log10_avg_income, y = log10_enlist_per_10K)) +
   geom_point(alpha = 0.3, color = 'tomato') +
   geom_smooth(method = lm, se = FALSE, color = 'dodgerblue4') +
   labs(
@@ -173,24 +194,27 @@ regression_points %>%
   mutate(squared_residuals = residual^2) %>%
   summarize(sum_sq_residuals = sum(squared_residuals))
 
+
   
 ```
 
 
+Last, I tested the hypothesis proposed at the outset, that there is less military enlistment among people from higher income areas. 
+
+I set the hypothesis as follows, with α = 0.05:
+
 H0:there is no relationship between income and military enlistment.
 vs.
-HA: there is greater military enlistment among people from lower income areas.
+HA: there is less military enlistment among people from higher income areas.
 
 ```{r}
-library(infer)
-
 obs_diff_corr <- enlist_by_income %>% 
-  specify(enlist_per_10K ~ avg_income) %>% 
+  specify(log10_enlist_per_10K ~ log10_avg_income) %>% 
   calculate(stat = "correlation")
 obs_diff_corr
 
 null_distribution_enlist <- enlist_by_income %>% 
-  specify(formula = enlist_per_10K ~ avg_income) %>% 
+  specify(formula = log10_enlist_per_10K ~ log10_avg_income) %>% 
   hypothesize(null = "independence") %>% 
   generate(reps = 1000, type = "permute") %>% 
   calculate(stat = "correlation")
@@ -199,4 +223,94 @@ null_distribution_enlist
 visualise(null_distribution_enlist, bins = 30) +
   shade_p_value(obs_diff_corr, direction = 'left')
 
+null_distribution_enlist %>%
+  get_p_value(obs_stat = obs_diff_corr, direction = "left")
+
+bootstrap_distrib_enlist <- enlist_by_income %>% 
+  specify(formula = log10_enlist_per_10K ~ log10_avg_income) %>% 
+#  hypothesize(null = "independence") %>% 
+  generate(reps = 1000, type = "bootstrap") %>% 
+  calculate(stat = "correlation")
+
+percentile_ci <- bootstrap_distrib_enlist %>% 
+  get_confidence_interval(level = 0.95, type = "percentile")
+percentile_ci
+
+visualize(bootstrap_distrib_enlist) + 
+  shade_confidence_interval(endpoints = percentile_ci)
+
 ```
+As seen in the simulation-based null distribution, if the null hypothesis were true, we would expect the correlation coefficient to likely be close to 0. However, the red line indicates the observed correlation coefficient, which is far outside of the range produced by the simulation. Further, the p-value is extremely small, essentially 0, indicating a very small probability of obtaining such a result if there were no actual relationship between income and enlistment.
+
+Examining this result in another way, using bootstrap resampling with replacement to mimic sampling variation, produces a new distribution with a confidence interval that shows that we should expect 95% of correlation coefficients to fall between -0.6107793 and	-0.4601502, indicating that we should expect a moderate negative association between income and enlistments per 10,000 most of the time, and it is unlikely that our observed result was due to a quirk of our particular sample. 
+
+Of course, our inference that there is a significant association between income and enlistment might not be warranted if the data fails to meet one of the following conditions:
+
+1. Linearity of relationship between variables
+2. Independence of the residuals
+3. Normality of the residuals
+4. Equality of variance of the residuals
+
+Examining each condition in turn demonstrates that the data meets all four conditions.
+
+### Linearity of Relationship Between Variables
+
+The linearity of the relationship between enlistments per 10,000 and average income can be observed in the visualization of the regression model.
+
+### Independence of the Residuals
+
+Without further information about data collection practices, it is impossible to say with certainty that all observations are independent of one another but it is highly improbable that recruits were counted more than once across different zip codes or that tax returns—the basis for calculating incomes—were assigned to more than one zip code. Therefore, it is a safe assumption that the residuals are independent.
+
+### Normality of the Residuals
+
+Making a histogram of the residuals demonstrates a normal distribution, centered at 0. Therefore, this condition is satisfied.
+```{r}
+ggplot(regression_points, aes(x = residual)) +
+  geom_histogram(binwidth = 0.25, color = 'white', fill = 'dodgerblue4') +
+  labs(x = "Residual")
+```
+
+
+### Equality of Variance of the Residuals
+
+The value and spread of the residuals do not appear to depend on the explanatory variable, the average income. It might be argued that there is slightly less variation for lower levels of income, but there is not a drastic differnce.
+```{r}
+ggplot(regression_points, aes(x = log10_avg_income, y = residual)) +
+  geom_point() +
+  labs(x = "Average Income", y = "Residual") +
+  geom_hline(yintercept = 0, col = "dodgerblue4", size = 1)
+```
+
+## Data Limitations
+
+The data presented here has several limitations. First, I want to emphasize that the "average income" used here should not be confused for an actual average of the income of a particular zip code. Instead, the average income is a marker of the relative wealth of a zip code, as derived from the aggregated midpoints of AGI ranges for each zip code. 
+
+Second, zip codes are troublesome geographic indicators. They are less granular than census tracks (which were used in The Heritage Foundation report), meaning variations in income levels within the zip codes might be erased, and, although not a problem for this analysis, can change over time. It's important to be clear that what is being examined is not household income or family wealth but rather the economic status of a geographic zone. This is an imperfect proxy for the economic status of people who actually enlist. 
+
+Third, little information was available about the enlistment data. Whereas the IRS provided a guide describing their data (available on the project's GitHub repository), there is no information about how the data was collected or recorded. It is possible that the problems that led to the elimination of the 999 zip code data point to a deeper complication in the way the military records enlistment data that could affect the entire dataset. 
+
+Fourth, the strength of the relationship between income and enlistment is surprising. As noted, I suspected enlistment would decrease as wealth increased but a 140% decrease in enlistment is much higher than I would have predicted. Although I've done my best to avoid errors, my best might not have been enough, and there could be a mistake or an undiscovered problem in the underlying data that is influencing the outcome.
+
+There are also some unknowns worthy of further investigation. In addition to attempting to resolve some of the limitations mentioned above, other demographic associations should be explored, such as the effect of race and gender. 
+
+## Conclusion
+
+What to make of the results of this analysis compared to data that suggests the middle class is overrepresented in the military? Can both be true? Certainly. This analysis shows a significant decrease in enlistment per 10,000 as income increases for the year 2010 but does not present evidence of the economic status of recruits relative to the demographics of the nation. On the other hand, the demographics of the military relative to national demographics shouldn't be used to suggest motivations for enlisting. If this analysis were to follow the lead of The Heritage Foundation report, should it conclude that the wealthier are less patriotic? Understanding why people serve in the military should not be confused with studying who serves in the military. 
+
+In fact, it is easy to imagine an explanation that aligns the findings of this analysis, The Heritage Foundation report, and the idea that people join the military do so because "they have no other opportunities" (Watkins and Sherk 2008, 2). People from the middle class who enlist have the resources necessary to largely avoid social ills associated with poverty that could exclude them from being eligible to join but through bad luck or poor decisions have been left with "no other opportunities," while those from areas with higher incomes are better able to leverage family wealth to create opportunities even in the face of adversity. My intent in posing this (evidence-free) hypothetical is not to impute that the armed services is the career choice of last resort but rather to argue for greater reflection on the role of the military in our society and argue that reflexive veneration of the military can obscure the genuine material concerns of our armed forces. Ultimately, if research can produce an understanding about why people enlist that is more nuanced than "for love of country," we can better serve the people who serve our country.
+
+## Acknowledgements
+
+In conducting this analysis, I am grateful for the guidance of the following people, and relied on the following sources:
+
+Discussions with my classmate Prithvijit Dasgupta helped clarify concepts and pointed me in the right direction when I was stuck. My professor Dr. Elle O’Brien and Graduate Student Instructor Akash Sood offered support, instruction, and helped me think through tricky conceptual and coding issues throughout this project, and the semester.
+
+I referred to the online resources Statology (https://www.statology.org/dplyr-coalesce/), Modern Dive (https://moderndive.com/), and Stack Overflow (https://stackoverflow.com/) for assistance with writing my code.
+
+## References
+
+Bachman, Jerald G., David R. Segal, Peter Freedman-Doan, and Patrick M. O’Malley. 2000. “Who Chooses Military Service? Correlates of Propensity and Enlistment in the U.S. Armed Forces.” Military Psychology 12 (1): 1–30. https://doi.org/10.1207/S15327876MP1201_1.
+“Demographics of the U.S. Military.” n.d. Council on Foreign Relations. Accessed December 7, 2022. https://www.cfr.org/backgrounder/demographics-us-military.
+Lutz, Amy. 2008. “Who Joins the Military? A Look at Race, Class, and Immigration Status.” Journal of Political & Military Sociology 36 (2): 167–88.
+Watkins, Shanea J, and James Sherk. 2008. “Who Serves in the U.S. Military? Demographic Characteristics of Enlisted Troops and Of Cers.” CDA08-05. Heritage Foundation Center for Data Analysis.
+
