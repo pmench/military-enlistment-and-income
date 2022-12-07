@@ -2,7 +2,10 @@
 title: "Relationship Between Military Enlistment and Income by Zip Code"
 output: html_notebook
 author: Philip Menchaca
+url: https://github.com/pmench/military-enlistment-and-income
 ---
+
+A 2008 report by The Heritage Foundation concluded that enlisted military recruits were more likely to come from middle and upper class neighborhoods (Watkins, Shanea J, and James Sherk. 2008. “Who Serves in the U.S. Military? Demographic Characteristics of Enlisted Troops and Of Cers.” CDA08-05. Heritage Foundation Center for Data Analysis). In contrast, a 2008 study concluded that "among the working class, those who have served in the military have tended to come from poorer circumstances, while there is low representation of the children of the very rich" (Lutz, Amy. 2008. “Who Joins the Military? A Look at Race, Class, and Immigration Status.” Journal of Political & Military Sociology 36 (2): 178).
 
 
 
@@ -112,10 +115,12 @@ enlist_by_income %>% select(enlist_per_10K, avg_income) %>% skim()
 enlist_by_income %>%
   get_correlation(formula = enlist_per_10K ~ avg_income)
 
-enlist_under_avg_income <- sum(enlist_by_income[which(enlist_by_income$avg_income < 
-                             mean(enlist_by_income$avg_income)), "total_enlisted"])
+median(enlist_by_income$avg_income)
 
-enlist_under_avg_income / sum(enlist_by_income$total_enlisted)
+enlist_under_median_income <- sum(enlist_by_income[which(enlist_by_income$avg_income < 
+                             median(enlist_by_income$avg_income)), "total_enlisted"])
+
+enlist_under_median_income / sum(enlist_by_income$total_enlisted)
 ```
 
 
@@ -172,4 +177,26 @@ regression_points %>%
 ```
 
 
+H0:there is no relationship between income and military enlistment.
+vs.
+HA: there is greater military enlistment among people from lower income areas.
 
+```{r}
+library(infer)
+
+obs_diff_corr <- enlist_by_income %>% 
+  specify(enlist_per_10K ~ avg_income) %>% 
+  calculate(stat = "correlation")
+obs_diff_corr
+
+null_distribution_enlist <- enlist_by_income %>% 
+  specify(formula = enlist_per_10K ~ avg_income) %>% 
+  hypothesize(null = "independence") %>% 
+  generate(reps = 1000, type = "permute") %>% 
+  calculate(stat = "correlation")
+null_distribution_enlist
+
+visualise(null_distribution_enlist, bins = 30) +
+  shade_p_value(obs_diff_corr, direction = 'left')
+
+```
